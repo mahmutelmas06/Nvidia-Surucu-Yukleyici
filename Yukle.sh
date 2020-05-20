@@ -202,12 +202,14 @@ case $word in
 echo "25"
 echo "# Ekran kartınız yükleniyor." ; sleep 2
 
+chmod 777 -R ./cihaz.txt
 dpkg --add-architecture i386 && sudo apt update
 apt-get install -y linux-headers-amd64
 apt-get install -y ${cihazz}
 apt-get install -y ${cihazz}-libs-i386
 mkdir -p /etc/X11/xorg.conf.d
 echo -e 'Section "Device"\n\tIdentifier "My GPU"\n\tDriver "nvidia"\nEndSection' > /etc/X11/xorg.conf.d/20-nvidia.conf
+rm ./cihaz.txt
 
 ;;
 "Çift"*)  	

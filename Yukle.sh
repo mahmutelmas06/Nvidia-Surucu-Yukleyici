@@ -5,6 +5,12 @@
 # nvidia-detect paketi baz alınarak oluşturulmuştur
 
 
+ROOT_UID=0	                        		# Root Kimliği
+MAX_DELAY=20                        		# Şifre girmek için beklenecek süre
+
+
+if [ "$UID" -eq "$ROOT_UID" ]; then 		# Root yetkisi var mı diye kontrol et.
+
 if [ "$1" = "-h" -o "$1" = "--help" ]; then
 	echo "Usage: nvidia-detect [PCIID]..."
 	echo "       Reports the Debian packages supporting the NVIDIA GPU that is"
@@ -112,7 +118,7 @@ fi
 
 
 if [ -n "$PACKAGE" ]; then
-	echo "Yüklemeniz gereken sürücü:"
+	echo "Kartınızla uyumlu sürücü paketi:"
 	echo "$PACKAGE" | tee ./cihaz.txt
 fi
 
@@ -160,11 +166,6 @@ fi
 
 
 
-ROOT_UID=0	                        		# Root Kimliği
-MAX_DELAY=20                        		# Şifre girmek için beklenecek süre
-
-
-if [ "$UID" -eq "$ROOT_UID" ]; then 		# Root yetkisi var mı diye kontrol et.
 
 
 cihazz="$(awk '{print $1}' ./cihaz.txt)"
@@ -251,13 +252,15 @@ echo "# Kernel güncelleniyor." ; sleep 2
 
 echo "deb http://deb.debian.org/debian stretch-backports main" | tee -a /etc/apt/sources.list
 
-$ cat <<EOF | sudo tee /etc/apt/sources.list.d/buster-backports.list
+cat <<EOF | sudo tee /etc/apt/sources.list.d/buster-backports.list
 deb http://http.debian.net/debian buster-backports main contrib non-free
 EOF
 
 apt-get update
 
 apt-get -t buster-backports install -y linux-image-5.5.0-0.bpo.2-amd64
+
+echo $(apt-cache policy linux-image-amd64)
 
 
 ;;
@@ -267,6 +270,8 @@ echo "# Son yüklediğiniz Kernel kaldırılıyor." ; sleep 2
 
 
 apt-get purge -y linux-image-5.5.0-0.bpo.2-amd64*
+
+echo $(apt-cache policy linux-image-amd64)
 
 
 ;;    

@@ -180,8 +180,8 @@ action=$(zenity --list --radiolist \
 			  FALSE 				  "Tek ekran kartlı bilgisayar" 								 			 " Sisteminiz tek ekran kartlıysa bu seçeneği seçin" \
 			  FALSE 				  "Çift ekran kartlı bilgisayar" 				 							 " Sisteminizde iki ekran kartı varsa bu seçeneği seçin. (Örnek Nvidia+Intel)" \
 			  FALSE 				  "Nvidia sürücülerini kaldır" 				 								 " Yüklenen Nvidia sürücülerini kaldır ve Nouveau sürücüsüne dön" \
-			  FALSE 				  "Kernel güncelle" 														 " Linux çekirdeğini son sürüme güncelle. Dikkat!! Sisteme zarar verebilir" \
-			  FALSE 				  "Kerneli kaldır" 														 	 " Yüklediğiniz kernel sorunlara sebep olduysa kaldırabilirsiniz" \
+			  FALSE 				  "Kerneli güncelle" 														 " Linux çekirdeğini son sürüme güncelle. Dikkat!! Sisteme zarar verebilir" \
+			  FALSE 				  "Kernel güncellemesini kaldır" 										 	 " Yüklediğiniz kernel sorunlara sebep olduysa kaldırabilirsiniz" \
 	--separator=":")
 	
 
@@ -202,14 +202,13 @@ case $word in
 echo "25"
 echo "# Ekran kartınız yükleniyor." ; sleep 2
 
-chmod 777 -R ./cihaz.txt
 dpkg --add-architecture i386 && sudo apt update
 apt-get install -y linux-headers-amd64
 apt-get install -y ${cihazz}
 apt-get install -y ${cihazz}-libs-i386
 mkdir -p /etc/X11/xorg.conf.d
 echo -e 'Section "Device"\n\tIdentifier "My GPU"\n\tDriver "nvidia"\nEndSection' > /etc/X11/xorg.conf.d/20-nvidia.conf
-rm ./cihaz.txt
+rm -f ./cihaz.txt
 
 ;;
 "Çift"*)  	
@@ -248,7 +247,7 @@ rm /etc/X11/xorg.conf.d/20-nvidia.conf
 
 
 ;;
-"Kernel"*)  
+"Kerneli"*)  
 echo "75"
 echo "# Kernel güncelleniyor." ; sleep 2
 
@@ -260,18 +259,18 @@ EOF
 
 apt-get update
 
-apt-get -t buster-backports install -y linux-image-5.5.0-0.bpo.2-amd64
+apt-get -t buster-backports install -y linux-image-5.4.0-0.bpo.3-amd64
 
 echo $(apt-cache policy linux-image-amd64)
 
 
 ;;
-"Kerneli"*)  
+"Kernel"*)  
 echo "75"
 echo "# Son yüklediğiniz Kernel kaldırılıyor." ; sleep 2
 
 
-apt-get purge -y linux-image-5.5.0-0.bpo.2-amd64*
+apt-get purge -y linux-image-5.4.0-0.bpo.3-amd64
 
 echo $(apt-cache policy linux-image-amd64)
 

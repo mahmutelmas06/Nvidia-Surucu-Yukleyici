@@ -259,7 +259,9 @@ EOF
 
 apt-get update
 
-apt-get -t buster-backports install -y linux-image-5.4.0-0.bpo.3-amd64
+apt-get -t buster-backports install -y linux-image-5.5.0-0.bpo.2-amd64
+
+apt-get install -y linux-headers-5.5.0-0.bpo.2-amd64
 
 echo $(apt-cache policy linux-image-amd64)
 
@@ -270,7 +272,9 @@ echo "75"
 echo "# Son yüklediğiniz Kernel kaldırılıyor." ; sleep 2
 
 
-apt-get purge -y linux-image-5.4.0-0.bpo.3-amd64
+apt-get purge -y linux-image-5.5.0-0.bpo.2-amd64
+
+apt-get purge -y linux-headers-5.5.0-0.bpo.2-amd64
 
 echo $(apt-cache policy linux-image-amd64)
 

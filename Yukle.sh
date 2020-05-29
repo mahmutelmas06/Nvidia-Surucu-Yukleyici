@@ -11,6 +11,8 @@ MAX_DELAY=20                        		# Şifre girmek için beklenecek süre
 
 if [ "$UID" -eq "$ROOT_UID" ]; then 		# Root yetkisi var mı diye kontrol et.
 
+dpkg --add-architecture i386
+
 if [ "$1" = "-h" -o "$1" = "--help" ]; then
 	echo "Usage: nvidia-detect [PCIID]..."
 	echo "       Reports the Debian packages supporting the NVIDIA GPU that is"
@@ -120,6 +122,7 @@ fi
 if [ -n "$PACKAGE" ]; then
 	echo "Kartınızla uyumlu sürücü paketi:"
 	echo "$PACKAGE" | tee ./cihaz.txt
+	chmod 777 ./cihaz.txt
 fi
 
 }
@@ -172,7 +175,7 @@ cihazz="$(awk '{print $1}' ./cihaz.txt)"
 
 
 (
-echo "# Seçim bekleniyor." ; sleep 2  		# Zenity yükleme göstergesi başlangıç
+echo "Kullanıcı Seçimi bekleniyor..." ; sleep 2  		# Zenity yükleme göstergesi başlangıç
 action=$(zenity --list --radiolist \
 	--height 300 --width 800 \
 	--title "Nvidia Sürücü Yükleme Yazılımı" \
@@ -199,29 +202,29 @@ case $word in
 
 
 "Tek"*)        
-echo "25"
-echo "# Ekran kartınız yükleniyor." ; sleep 2
+echo "# Ekran kartınız yükleniyor.Yükleme tamamlanana kadar pencereyi kapatmayınız..." ; sleep 2
 
-dpkg --add-architecture i386 && sudo apt update
+sudo killall dpkg
+apt-get update -y
 apt-get install -y linux-headers-amd64
-apt-get install -y ${cihazz}
-apt-get install -y ${cihazz}-libs-i386
+apt-get install -y "${cihazz}"
+apt-get install -y "${cihazz}""-libs-i386"
 mkdir -p /etc/X11/xorg.conf.d
 echo -e 'Section "Device"\n\tIdentifier "My GPU"\n\tDriver "nvidia"\nEndSection' > /etc/X11/xorg.conf.d/20-nvidia.conf
 rm -f ./cihaz.txt
 
 ;;
 "Çift"*)  	
-echo "50"
-echo "# Ekran kartınız yükleniyor." ; sleep 2
+echo "# Ekran kartınız yükleniyor.Yükleme tamamlanana kadar pencereyi kapatmayınız..." ; sleep 2
 
 _USERS="$(awk -F'[/:]' '{if ($3 >= 1000 && $3 != 65534) print $1}' /etc/passwd)" # Kullanıcı listesini al
 
-dpkg --add-architecture i386 && sudo apt update
+sudo killall dpkg
+apt-get update -y
 apt-get install -y x11-xserver-utils
 apt-get remove -y xserver-xorg-video-intel
-apt-get install -y ${cihazz}
-apt-get install -y ${cihazz}-libs-i386
+apt-get install -y "${cihazz}"
+apt-get install -y "${cihazz}""-libs-i386"
 apt-get install -y bumblebee-nvidia primus-nvidia primus-vk-nvidia
 apt-get install -y primus-libs-ia32 nvidia-driver-libs-i386
 systemctl restart bumblebeed
@@ -234,21 +237,22 @@ done
 #busidd="$(lspci | egrep 'VGA|3D')"
 
 echo -e 'Section "Screen"\n\tIdentifier "Default Screen"\n\tDevice "DiscreteNvidia"\nEndSection' > /etc/bumblebee/xorg.conf.nvidia
-
+rm -f ./cihaz.txt
 
 ;;
 "Nvidia"*)  
-echo "75"
 echo "# Nvidia sürücüleri kaldırılarak açık kaynak sürücülere dönülüyor." ; sleep 2
 
-apt purge -y *nvidia*
-apt purge -y *bumblebee*
+sudo killall dpkg
+apt-get purge -y *nvidia*
+apt-get purge -y *bumblebee*
 rm /etc/X11/xorg.conf.d/20-nvidia.conf
+apt-get autoremove
+
 
 
 ;;
 "Kerneli"*)  
-echo "75"
 echo "# Kernel güncelleniyor." ; sleep 2
 
 echo "deb http://deb.debian.org/debian stretch-backports main" | tee -a /etc/apt/sources.list
@@ -268,7 +272,6 @@ echo $(apt-cache policy linux-image-amd64)
 
 ;;
 "Kernel"*)  
-echo "75"
 echo "# Son yüklediğiniz Kernel kaldırılıyor." ; sleep 2
 
 
@@ -286,19 +289,14 @@ done   #  Zenity checklist için çoklu seçim komutu kapat
 
 # # # # # # # # # # # # # # # # # # # # # # #  # # # # # # # # # # # # # # # # # # # # # # # 
 
+rm -f ./cihaz.txt
 
 # İşlem tamamlanmıştır
 
 notify-send -t 2000 -i /usr/share/icons/gnome/32x32/status/info.png "İşlem Tamamlanmıştır"
 
-echo "# Tamamlandı." ; sleep 2
-echo "100"
-) |
-zenity --progress \
-  --title="Yükleme İlerlemesi" \
-  --text="Yönetici yetkileri sağlanıyor." \
-  --percentage=0 \
-  --pulsate
+
+)
 
 (( $? != 0 )) && zenity --error --text="Hata! İşlem iptal edildi."
 

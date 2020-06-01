@@ -205,13 +205,22 @@ case $word in
 echo "# Ekran kartınız yükleniyor.Yükleme tamamlanana kadar pencereyi kapatmayınız..." ; sleep 2
 
 sudo killall dpkg
+apt-get purge -y *nvidia*
+rm -f /etc/X11/xorg.conf.d/20-nvidia.conf
+rm -f /etc/X11/xorg.conf
+
 apt-get update -y
-apt-get install -y linux-headers-amd64
+apt-get install -y linux-headers-$(uname-r|sed 's/[^-]*-[^-]*-//')
 apt-get install -y "${cihazz}"
-apt-get install -y "${cihazz}""-libs-i386"
-mkdir -p /etc/X11/xorg.conf.d
-echo -e 'Section "Device"\n\tIdentifier "My GPU"\n\tDriver "nvidia"\nEndSection' > /etc/X11/xorg.conf.d/20-nvidia.conf
+apt-get install -y "${cihazz}""-libs-i386" nvidia-xconfig
+
+#mkdir -p /etc/X11/xorg.conf.d
+#echo -e 'Section "Device"\n\tIdentifier "My GPU"\n\tDriver "nvidia"\nEndSection' > /etc/X11/xorg.conf.d/20-nvidia.conf
+sudo echo blacklist nouveau > /etc/modprobe.d/blacklist-nvidia-nouveau.conf
+sudo echo options nouveau modeset=0 >> /etc/modprobe.d/blacklist-nvidia-nouveau.conf
+
 rm -f ./cihaz.txt
+apt-get -y autoremove
 
 ;;
 "Çift"*)  	
@@ -220,13 +229,15 @@ echo "# Ekran kartınız yükleniyor.Yükleme tamamlanana kadar pencereyi kapatm
 _USERS="$(awk -F'[/:]' '{if ($3 >= 1000 && $3 != 65534) print $1}' /etc/passwd)" # Kullanıcı listesini al
 
 sudo killall dpkg
+apt-get purge -y *nvidia*
+rm -f /etc/X11/xorg.conf.d/20-nvidia.conf
+rm -f /etc/X11/xorg.conf
+
 apt-get update -y
 apt-get install -y x11-xserver-utils
-apt-get remove -y xserver-xorg-video-intel
 apt-get install -y "${cihazz}"
 apt-get install -y "${cihazz}""-libs-i386"
-apt-get install -y bumblebee-nvidia primus-nvidia primus-vk-nvidia
-apt-get install -y primus-libs-ia32 nvidia-driver-libs-i386
+apt-get install -y bumblebee bumblebee-nvidia primus primus-nvidia primus-vk-nvidia primus-libs-ia32 nvidia-driver-libs-i386 libgl1-nvidia-glx:i386
 systemctl restart bumblebeed
 
 for u in ${_USERS} 
@@ -237,7 +248,9 @@ done
 #busidd="$(lspci | egrep 'VGA|3D')"
 
 echo -e 'Section "Screen"\n\tIdentifier "Default Screen"\n\tDevice "DiscreteNvidia"\nEndSection' > /etc/bumblebee/xorg.conf.nvidia
+
 rm -f ./cihaz.txt
+apt-get -y autoremove
 
 ;;
 "Nvidia"*)  
@@ -247,8 +260,13 @@ sudo killall dpkg
 apt-get purge -y *nvidia*
 apt-get purge -y *bumblebee*
 rm /etc/X11/xorg.conf.d/20-nvidia.conf
-apt-get autoremove
+rm -f /etc/X11/xorg.conf
 
+apt-get -y autoremove
+
+sudo apt-get install -y xserver-xorg-video-nouveau
+#nvidia-xconfig --restore-original-backup
+rm /etc/modprobe.d/blacklist-nvidia-nouveau.conf
 
 
 ;;
@@ -261,7 +279,7 @@ cat <<EOF | sudo tee /etc/apt/sources.list.d/buster-backports.list
 deb http://http.debian.net/debian buster-backports main contrib non-free
 EOF
 
-apt-get update
+apt-get -y update
 
 apt-get -t buster-backports install -y linux-image-5.5.0-0.bpo.2-amd64
 

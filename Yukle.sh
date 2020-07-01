@@ -1,17 +1,105 @@
-#!/bin/bash
+#!/bin/bash 
 
-# PARDUS EKRAN KARTI YÜKLEYİCİ
-# Mahmut Elmas
-# nvidia-detect paketi baz alınarak oluşturulmuştur
+#==============================================================================
+# -------------------  PARDUS EKRAN KARTI YÜKLEYİCİ----------------------------
+#  Yazar         : MAHMUT ELMAS
+#  İletişim      : mahmutelmas06@gmail.com
+#  Sürüm         : 0.2
+#  Bağımlıkıklar : zenity apt wget
+#  Lisans        : MIT - 
+#  Bilgi         : Nvidia Detect paketi baz alınarak oluşturulmuştur
+#
+#==============================================================================
 
 
-ROOT_UID=0	                        		# Root Kimliği
-MAX_DELAY=20                        		# Şifre girmek için beklenecek süre
+#==============================================================================  Yönetici hakları kontrolü
+
+xhost +
+clear
+
+if [[ "$EUID" != "0" ]]; then
+	notify-send -t 2000 -i /usr/share/icons/gnome/32x32/status/info.png "Yönetici olarak çalıştırın ya da root şifrenizi girin."
+	echo -e "\nBu betik Yönetici Hakları ile çalıştırılmalıdır. Lütfen Şifrenizi giriniz...\n"
+	sudo "bash" "$0" "$@" ; exit 0
+else
+	echo "Yönetici hakları doğrulandı..."
+fi
 
 
-if [ "$UID" -eq "$ROOT_UID" ]; then 		# Root yetkisi var mı diye kontrol et.
+NEYUKLU=$(dpkg -l | grep -E '^ii' | awk '{print $2}' | tail -n+5)				 # Yüklü tüm paketlerin listesi
 
-dpkg --add-architecture i386
+
+#==============================================================================  Zenity kontrolü
+
+if [[ -z "$(grep -F ' zenity ' <<< ${NEYUKLU[@]})" ]]; then
+
+  echo "# Zenity bulunamadı ve yükleniyor..."
+  apt-get install -y zenity
+  
+fi
+
+
+#==============================================================================  Başka bir yükleyici çalışıyor mu kontrol et
+
+checkPackageManager() {
+
+if [[ "$(pidof synaptic)" ]] || 
+   [[ $(pidof apt | wc -w) != "0" || $(pidof apt-get | wc -w) != "0" ]]; then
+
+   zenity --question --cancel-label="İptal Et" --ok-label="Devam Et" --title="Başka bir paket yöneticisi çalışıyor" \
+          --width="360" --height="120" --window-icon="warning" --icon-name="gtk-dialog-warning" \
+          --text="\nŞu anda başka bir paket yöneticisinin çalıştığı tespit edildi!!! \
+Devam etmeden önce diğer yükleyiciler sonlandırılacaktır.\n\nDevam etmek istiyor musunuz?" 2>/dev/null
+
+  if [[ "$?" != "0" ]]; then ${opt_procedure[@]}
+  else
+    killall -9 synaptic
+    killall -9 apt
+    killall -9 apt-get
+    killall -9 gdebi
+    killall -9 pdebi
+    killall -9 deepin-deb-installer
+    sleep 1
+  fi
+fi
+}
+
+opt_procedure="exit 0" ; checkPackageManager
+
+#==============================================================================  İnternet bağlantısı kontrolü
+
+echo -e "GET http://google.com HTTP/1.0\n\n" | nc google.com 80 > /dev/null 2>&1
+
+if [ $? -eq 0 ]; then
+    echo "İnternet bağlantısı doğrulandı..."
+else
+    zenity --width 320 --error --title "İnternet Bağlantısı algılanmadı" --text "Bu uygulama internet bağlantısı gerektirir. \nİnternete bağlandıktan sonra tekrar çalıştırın."; exit 1
+fi
+
+#==============================================================================
+
+( 	  # Zenity yükleme göstergesi başlangıç
+
+echo "# Öyükleme işlemi başlatılıyor." ; sleep 2	
+
+# Yüklemeye hazırlık aşamaları
+							 
+
+echo "# Varsa APT sorunları çözülüyor..." ; sleep 2	
+
+rm /var/lib/apt/lists/lock
+rm /var/cache/apt/archives/lock
+dpkg --configure -a
+apt-get install -fy
+apt-get update -y
+
+
+
+echo "# Sistemin 32 Bit desteği denetleniyor..." ; sleep 2	
+
+dpkg --add-architecture i386 
+apt-get -y install linux-headers-$(uname -r)
+
 
 if [ "$1" = "-h" -o "$1" = "--help" ]; then
 	echo "Usage: nvidia-detect [PCIID]..."
@@ -20,6 +108,8 @@ if [ "$1" = "-h" -o "$1" = "--help" ]; then
 	exit 0
 fi
 
+
+#============================================================================== Nvidia Detect paketi ile sürücüleri belirle
 
 # last time the PCI IDs were updated
 LATEST="418.113"
@@ -169,10 +259,19 @@ fi
 
 
 
+) |
+zenity 	--progress \
+		--title="Yükleme hazırlanıyor..." \
+		--text="Yükleme başlatılıyor." \
+		--percentage=0 \
+		--width 400 \
+		--pulsate \
+		--auto-close
 
 
 cihazz="$(awk '{print $1}' ./cihaz.txt)"
 
+#====================================================================================================================================================
 
 (
 echo "Kullanıcı Seçimi bekleniyor..." ; sleep 2  		# Zenity yükleme göstergesi başlangıç
@@ -204,15 +303,13 @@ case $word in
 "Tek"*)        
 echo "# Ekran kartınız yükleniyor.Yükleme tamamlanana kadar pencereyi kapatmayınız..." ; sleep 2
 
-sudo killall dpkg
 apt-get purge -y *nvidia*
 rm -f /etc/X11/xorg.conf.d/20-nvidia.conf
 rm -f /etc/X11/xorg.conf
 
 apt-get update -y
-apt-get install -y linux-headers-$(uname-r|sed 's/[^-]*-[^-]*-//')
 apt-get install -y "${cihazz}"
-apt-get install -y "${cihazz}""-libs-i386" nvidia-xconfig
+apt-get install -y "${cihazz}"-libs-i386 nvidia-xconfig
 
 #mkdir -p /etc/X11/xorg.conf.d
 #echo -e 'Section "Device"\n\tIdentifier "My GPU"\n\tDriver "nvidia"\nEndSection' > /etc/X11/xorg.conf.d/20-nvidia.conf
@@ -319,21 +416,6 @@ notify-send -t 2000 -i /usr/share/icons/gnome/32x32/status/info.png "İşlem Tam
 (( $? != 0 )) && zenity --error --text="Hata! İşlem iptal edildi."
 
 exit 0
-
-else
-
-  # Error message to continue
-  notify-send -t 2000 -i /usr/share/icons/gnome/32x32/status/info.png "Yönetici olarak çalıştırın"
-
-  # persisted execution of the script as root
-  read -p "Devam etmek için Yönetici şifrenizi girin : " -t${MAX_DELAY} -s
-  [[ -n "$REPLY" ]] && {
-    sudo -S <<< $REPLY $0
-  } || {
-    notify-send -t 2000 -i /usr/share/icons/gnome/32x32/status/info.png "Yönetici şifresini girmediğiniz için iptal edildi"
-    exit 1
-  }
-fi
 
 
 

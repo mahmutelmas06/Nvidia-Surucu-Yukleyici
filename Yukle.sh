@@ -78,6 +78,61 @@ fi
 
 #==============================================================================
 
+
+_USERS="$(grep "/bin/bash" < /etc/passwd | grep "[1][0-9][0-9][0-9]" | cut -d: -f1)"	# Sistemdeki kullanıcıları adlarını listele
+RUSER_UID=$(id -u ${_USERS})													 		# Kullanıcı ID numaraları
+
+
+for u in ${_USERS}																		# Tüm betik Root olarak çalıştığı için kullanıcı bazlı işlemleri gerçekleştirir
+do
+
+_dir="/home/${u}"																		# Kullanıcı ev dizini
+
+debmi="/usr/share/pardusyama"															# debian paketi mi değil mi
+
+
+
+#==============================================================================           Masaüstü türünü belirle
+
+
+windowManagerName () {
+    local window=$(
+        xprop -root -notype
+    )
+
+    local identifier=$(
+        echo "${window}" |
+        awk '$1=="_NET_SUPPORTING_WM_CHECK:"{print $5}'
+    )
+
+    local attributes=$(
+        xprop -id "${identifier}" -notype -f _NET_WM_NAME 8t
+    )
+
+    local name=$(
+        echo "${attributes}" |
+        grep "_NET_WM_NAME = " |
+        cut --delimiter=' ' --fields=3 |
+        cut --delimiter='"' --fields=2
+    )
+
+    echo "${name}"
+}
+
+
+if [ "$(windowManagerName)" == "Xfwm4" ] ; then
+desktop=xfce
+echo " XFCE kullandığınız tespit edildi."
+else
+desktop=gnome
+echo " GNOME kullandığınız tespit edildi."
+fi
+
+
+				
+
+#==============================================================================	  
+
 ( 	  # Zenity yükleme göstergesi başlangıç
 
 echo "# Öyükleme işlemi başlatılıyor." ; sleep 2	
@@ -309,12 +364,13 @@ rm -f /etc/X11/xorg.conf
 
 apt-get update -y
 apt-get install -y "${cihazz}"
-apt-get install -y "${cihazz}"-libs-i386 nvidia-xconfig
+apt-get install -y ""${cihazz}"-libs-i386" nvidia-xconfig
+apt-get install -y vulkan-utils python3-apport glibc-doc:i386 locales:i386 lm-sensors:i386 vulkan-utils:i386
 
-#mkdir -p /etc/X11/xorg.conf.d
-#echo -e 'Section "Device"\n\tIdentifier "My GPU"\n\tDriver "nvidia"\nEndSection' > /etc/X11/xorg.conf.d/20-nvidia.conf
-sudo echo blacklist nouveau > /etc/modprobe.d/blacklist-nvidia-nouveau.conf
-sudo echo options nouveau modeset=0 >> /etc/modprobe.d/blacklist-nvidia-nouveau.conf
+mkdir -p /etc/X11/xorg.conf.d
+echo -e 'Section "Device"\n\tIdentifier "My GPU"\n\tDriver "nvidia"\nEndSection' > /etc/X11/xorg.conf.d/20-nvidia.conf
+echo blacklist nouveau > /etc/modprobe.d/blacklist-nvidia-nouveau.conf
+echo options nouveau modeset=0 >> /etc/modprobe.d/blacklist-nvidia-nouveau.conf
 
 rm -f ./cihaz.txt
 apt-get -y autoremove
@@ -322,8 +378,6 @@ apt-get -y autoremove
 ;;
 "Çift"*)  	
 echo "# Ekran kartınız yükleniyor.Yükleme tamamlanana kadar pencereyi kapatmayınız..." ; sleep 2
-
-_USERS="$(awk -F'[/:]' '{if ($3 >= 1000 && $3 != 65534) print $1}' /etc/passwd)" # Kullanıcı listesini al
 
 sudo killall dpkg
 apt-get purge -y *nvidia*
@@ -337,17 +391,70 @@ apt-get install -y "${cihazz}""-libs-i386"
 apt-get install -y bumblebee bumblebee-nvidia primus primus-nvidia primus-vk-nvidia primus-libs-ia32 nvidia-driver-libs-i386 libgl1-nvidia-glx:i386
 systemctl restart bumblebeed
 
-for u in ${_USERS} 
-do
 adduser ${u} bumblebee
-done
-
-#busidd="$(lspci | egrep 'VGA|3D')"
 
 echo -e 'Section "Screen"\n\tIdentifier "Default Screen"\n\tDevice "DiscreteNvidia"\nEndSection' > /etc/bumblebee/xorg.conf.nvidia
 
 rm -f ./cihaz.txt
 apt-get -y autoremove
+
+BET=".local/share/nautilus/scripts"
+GNM=".local/share/gnome-shell/extensions" 	
+
+
+
+_FILESB="./Betikler/*"
+_FILESG="./Gnome/*"
+_FILESX="./Xfce/.config/."
+
+if [ "$desktop" == "gnome" ] ; then
+
+ for f in $_FILESB
+   do
+    
+
+       cp -r "${f}" "$_dir/${BET}" #  Betikleri kopyala
+
+       find "$_dir/${BET}/" -type f -exec chmod 777 {} \+ # Betik izinleri
+       
+       chown -R $(id -un $u):$(id -gn $u) "$_dir/${BET}/."     
+
+done
+
+for f in $_FILESG
+   do
+    
+
+       cp -r "${f}" "$_dir/${GNM}" 																# Dosyaları kopyala
+ #     cp -r "${f}" "/usr/share/gnome-shell/extensions" 										# Dosyaları sistem dizinine kopyala
+
+       find "$_dir/${GNM}/" -type f -exec chmod 777 {} \+ 										# Eklenti izinleri
+ #     find "/usr/local/share/gnome-shell/extensions" -type f -exec chmod 777 {} \+ 			# Sistem eklenti izinleri
+       
+       chown -R $(id -un $u):$(id -gn $u) "$_dir/${GNM}/."
+
+done
+
+else
+
+   for f in $_FILESX
+   do
+    
+       cp -r "${f}" "$_dir/.config/" 
+       
+       chown -R $(id -un $u):$(id -gn $u) "$_dir/.config/."
+       
+       find "$_dir/.config/" -type f -exec chmod 777 {} \+
+       
+   done
+
+
+fi
+
+sudo -u ${u} DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${RUSER_UID}/bus" gnome-shell-extension-tool -e GNOME_Run_With_PRIME@floturcocantsee.daguerro.net
+sudo -u ${u} DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${RUSER_UID}/bus" gnome-shell-extension-tool -e prime-indicator@gnome-shell-exstensions.fffilo.github.com
+
+dconf update
 
 ;;
 "Nvidia"*)  
@@ -358,6 +465,9 @@ apt-get purge -y *nvidia*
 apt-get purge -y *bumblebee*
 rm /etc/X11/xorg.conf.d/20-nvidia.conf
 rm -f /etc/X11/xorg.conf
+rm -rf ".local/share/gnome-shell/extensions/GNOME_Run_With_PRIME@floturcocantsee.daguerro.net"
+rm -rf ".local/share/gnome-shell/extensions/prime-indicator@gnome-shell-exstensions.fffilo.github.com"
+rm -rf ".local/share/nautilus/scripts/Nvidia ile Aç"
 
 apt-get -y autoremove
 
@@ -370,17 +480,29 @@ rm /etc/modprobe.d/blacklist-nvidia-nouveau.conf
 "Kerneli"*)  
 echo "# Kernel güncelleniyor." ; sleep 2
 
-echo "deb http://deb.debian.org/debian stretch-backports main" | tee -a /etc/apt/sources.list
+set -e
 
-cat <<EOF | sudo tee /etc/apt/sources.list.d/buster-backports.list
-deb http://http.debian.net/debian buster-backports main contrib non-free
+SOURCE_LIST=/etc/apt/sources.list
+
+cp -v $SOURCE_LIST $SOURCE_LIST.debsave
+
+cat > $SOURCE_LIST.new <<EOF
+# Pardus Ondokuz
+deb http://depo.pardus.org.tr/pardus ondokuz main contrib non-free
+# deb-src http://depo.pardus.org.tr/pardus ondokuz main contrib non-free
+
+deb http://depo.pardus.org.tr/guvenlik ondokuz main contrib non-free
+# deb-src http://depo.pardus.org.tr/guvenlik ondokuz main contrib non-free
+
+# Pardus Ondokuz Backports
+deb http://19.depo.pardus.org.tr/backports ondokuz-backports main contrib non-free
+# deb-src http://19.depo.pardus.org.tr/backports ondokuz-backports main contrib non-free
 EOF
 
-apt-get -y update
+mv -fv $SOURCE_LIST.new $SOURCE_LIST
 
-apt-get -t buster-backports install -y linux-image-5.5.0-0.bpo.2-amd64
-
-apt-get install -y linux-headers-5.5.0-0.bpo.2-amd64
+DEBIAN_FRONTEND=noninteractive apt update
+DEBIAN_FRONTEND=noninteractive apt install -yq -o Dpkg::Options::="--force-confnew" -t ondokuz-backports linux-image-amd64
 
 echo $(apt-cache policy linux-image-amd64)
 
@@ -390,9 +512,9 @@ echo $(apt-cache policy linux-image-amd64)
 echo "# Son yüklediğiniz Kernel kaldırılıyor." ; sleep 2
 
 
-apt-get purge -y linux-image-5.5.0-0.bpo.2-amd64
+apt-get purge -y linux-image-5.*
 
-apt-get purge -y linux-headers-5.5.0-0.bpo.2-amd64
+apt-get purge -y linux-headers-5.*
 
 echo $(apt-cache policy linux-image-amd64)
 
@@ -415,6 +537,7 @@ notify-send -t 2000 -i /usr/share/icons/gnome/32x32/status/info.png "İşlem Tam
 
 (( $? != 0 )) && zenity --error --text="Hata! İşlem iptal edildi."
 
+done
 exit 0
 
 
